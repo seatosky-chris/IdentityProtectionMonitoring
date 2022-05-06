@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "IdentityProtectionMonitoring": {
+      "commandName": "Project",
+      "commandLineArgs": "-p 7072"
+    }
+  }
+}

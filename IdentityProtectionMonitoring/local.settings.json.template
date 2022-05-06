@@ -1,0 +1,26 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+
+    "Config.IDP_Function_AppID": "",
+    "Config.IDP_Function_Secret": "",
+    "Config.IDP_Function_TenantID": "",
+
+    "Notification_Url": "",
+    "Client_State_Secret": "",
+    "ProcessNotifications_SecretKey": "",
+
+    "Autotask_ClientAPI_URL": "",
+    "Autotask_APIKey": "",
+    "Autotask_OrgID": ,
+
+    "Email_APIEndpoint": "",
+    "Email_APIKey": "",
+    "Email_From__Email": "",
+    "Email_From__Name": "",
+    "Email_To__Email": "",
+    "Email_To__Name": ""
+  }
+}
