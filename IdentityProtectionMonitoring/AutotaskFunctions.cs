@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using IdentityProtectionMonitoring.Models;
 using IdentityProtectionMonitoring.Services;
 using Microsoft.Graph;
@@ -230,19 +231,41 @@ namespace IdentityProtectionMonitoring
         /// <param name="lastXDays">If set, filters by tickets that were created in the past X days.</param>
         /// <param name="excludeTicketId">A list of ticket IDs to exclude, ignored if set to null.</param>
         /// <returns>The list of tickets that were found, if none, then null</returns>
-        public async Task<AutotaskTicketsList?> SearchTickets(List<string> titleSearch, string titleSearchOperator = "contains", bool openOnly = false, double? lastXDays = null, List<int>? excludeTicketId = null)
+        public async Task<AutotaskTicketsList?> SearchTickets(List<string> titleSearch, string titleSearchOperator = "contains", bool titleSearchTypeOr = false, bool openOnly = false, double? lastXDays = null, List<int>? excludeTicketId = null)
         {
             List<AutotaskQueryFilterItem> filters = new();
 
-            foreach (string titlePart in titleSearch)
+            if (!titleSearchTypeOr)
             {
+                foreach (string titlePart in titleSearch)
+                {
+                    filters.Add(new AutotaskQueryFilterItem
+                    {
+                        op = titleSearchOperator,
+                        field = "title",
+                        value = titlePart
+                    });
+                }
+            }
+            else
+            {
+                List<AutotaskQueryFilterItem> titleFilters = new();
+                foreach (string titlePart in titleSearch)
+                {
+                    titleFilters.Add(new AutotaskQueryFilterItem
+                    {
+                        op = titleSearchOperator,
+                        field = "title",
+                        value = titlePart
+                    });
+                }
                 filters.Add(new AutotaskQueryFilterItem
                 {
-                    op = titleSearchOperator,
-                    field = "title",
-                    value = titlePart
+                    op = "or",
+                    items = titleFilters
                 });
             }
+
             if (openOnly)
             {
                 filters.Add(new AutotaskQueryFilterItem
@@ -286,7 +309,7 @@ namespace IdentityProtectionMonitoring
                     op = "and",
                     items = filters.ToArray()
                 }
-            });
+            }, new JsonSerializerOptions() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull });
 
             string ticketsJson = await AutotaskAPI.Query("Tickets", atFilter);
             AutotaskTicketsList? tickets = JsonSerializer.Deserialize<AutotaskTicketsList>(ticketsJson, jsonSerializerDefaults);

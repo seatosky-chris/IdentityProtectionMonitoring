@@ -9,7 +9,8 @@ namespace IdentityProtectionMonitoring.Models
     public class AutotaskQueryFilterItem
     {
         public string op { get; set; }
-        public string field { get; set; }
+        public string? field { get; set; }
         public string? value { get; set; }
+        public List<AutotaskQueryFilterItem>? items { get; set; }
     }
 }

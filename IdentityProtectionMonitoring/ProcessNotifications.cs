@@ -22,6 +22,18 @@ namespace IdentityProtectionMonitoring
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
+        /// <summary>
+        /// This can be used to connect different alert types within a ticket.
+        /// If an alert type matches the key, it will search for existing tickets based on the alerts in the related list,
+        /// if one is found, it will add a note rather than create a new ticket.
+        /// </summary>
+        private readonly Dictionary<string, List<string>> connectedAlertTypes = new()
+        {
+            { "Unfamiliar sign-in properties", new() { "Atypical travel", "Impossible travel" } },
+            { "Atypical travel", new() { "Unfamiliar sign-in properties", "Impossible travel" } },
+            { "Impossible travel", new() { "Atypical travel", "Unfamiliar sign-in properties" } }
+        };
+
         public ProcessNotifications(IConfiguration config, IGraphClientService clientService)
         {
             _config = config;
@@ -189,7 +201,26 @@ namespace IdentityProtectionMonitoring
                 // Search autotask for any existing and related tickets
                 List<string> existingTicketFilters = new();
                 existingTicketFilters.Add(ticketTitle);
-                var existingTickets = await AutotaskFunctions.SearchTickets(existingTicketFilters, "eq", true);
+
+                bool connectedAlertTypesFound = connectedAlertTypes.TryGetValue(alertDetails.AlertTitle, out List<string>? connectedAlertTypeTitles);
+                if (connectedAlertTypesFound && connectedAlertTypeTitles != null && connectedAlertTypeTitles.Any())
+                {
+                    foreach (string alertTypeTitle in connectedAlertTypeTitles)
+                    {
+                        string connectedTicketTitle = $"IDP Alert: '{alertTypeTitle}' for user '{alertDetails.UserDisplayName}'";
+                        existingTicketFilters.Add(connectedTicketTitle);
+                    }
+                }
+
+                AutotaskTicketsList? existingTickets = null;
+                try
+                {
+                    existingTickets = await AutotaskFunctions.SearchTickets(existingTicketFilters, titleSearchOperator: "eq", titleSearchTypeOr: true, openOnly: true);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError("Could not perform an Autotask ticket search.");
+                }
 
                 List<int>? existingTicketIds = null;
                 if (existingTickets != null && existingTickets.Items != null)
@@ -198,7 +229,7 @@ namespace IdentityProtectionMonitoring
                 List<string> relatedTicketFilters = new();
                 relatedTicketFilters.Add("IDP Alert:");
                 relatedTicketFilters.Add($"for user '{alertDetails.UserDisplayName}'");
-                var relatedTickets = await AutotaskFunctions.SearchTickets(relatedTicketFilters, "contains", false, 14, existingTicketIds);
+                var relatedTickets = await AutotaskFunctions.SearchTickets(relatedTicketFilters, lastXDays: 14, excludeTicketId: existingTicketIds);
 
                 List<string?>? relatedTicketNumbers = null;
                 if (relatedTickets != null && relatedTickets.Items != null)
@@ -268,7 +299,7 @@ Total: {totalAlertCount}";
                         CompanyLocationID = locationID,
                         Priority = 1,
                         Status = 1,
-                        QueueID = 29682833,
+                        QueueID = 8,
                         IssueType = 31,
                         SubIssueType = 222,
                         ServiceLevelAgreementID = 5,
