@@ -10,7 +10,7 @@ namespace IdentityProtectionMonitoring
     {
         private IConfiguration _config;
         private IGraphClientService _clientService;
-        private string subscriptionResource = "/security/alerts?$filter=status eq 'newAlert'";
+        private string subscriptionResource = "/security/alerts?$filter=status eq 'newAlert' and Severity ne 'Low'";
         private int expirationDays = 7;
 
         public CreateUpdateSubscription(IConfiguration config, IGraphClientService clientService)
@@ -62,6 +62,7 @@ namespace IdentityProtectionMonitoring
             var createNewSub = true;
 
             Subscription? updatedOrCreatedSub = null;
+            int updatedCount = 0;
             foreach (Subscription sub in existingSubs)
             {
                 if (sub.ExpirationDateTime < DateTimeOffset.UtcNow)
@@ -71,20 +72,31 @@ namespace IdentityProtectionMonitoring
                         .Request()
                         .DeleteAsync();
                 }
-                else if (sub.NotificationUrl == notificationHost && sub.Resource == subscriptionResource)
+                else if (sub.NotificationUrl == notificationHost)
                 {
-                    var updatedSub = new Subscription
+                    if (updatedCount < 1 && sub.Resource == subscriptionResource)
                     {
-                        ExpirationDateTime = DateTimeOffset.UtcNow.AddDays(expirationDays)
-                    };
+                        updatedCount++;
+                        var updatedSub = new Subscription
+                        {
+                            ExpirationDateTime = DateTimeOffset.UtcNow.AddDays(expirationDays)
+                        };
 
-                    updatedOrCreatedSub = await graphClient
+                        updatedOrCreatedSub = await graphClient
+                            .Subscriptions[sub.Id]
+                            .Request()
+                            .UpdateAsync(updatedSub);
+                        logger.LogInformation($"Updated subscription '{sub.Id}' expiry time to {updatedSub.ExpirationDateTime}");
+                        createNewSub = false;
+                    }
+                    else
+                    {
+                        await graphClient
                         .Subscriptions[sub.Id]
                         .Request()
-                        .UpdateAsync(updatedSub);
-                    logger.LogInformation($"Updated subscription '{sub.Id}' expiry time to {updatedSub.ExpirationDateTime}");
-
-                    createNewSub = false;
+                        .DeleteAsync();
+                        logger.LogInformation($"Deleted extra subscription '{sub.Id}'");
+                    }
                 }
             }
 
