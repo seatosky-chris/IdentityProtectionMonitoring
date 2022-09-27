@@ -2,6 +2,7 @@
 using System.Text.Json.Serialization;
 using IdentityProtectionMonitoring.Models;
 using IdentityProtectionMonitoring.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 
 namespace IdentityProtectionMonitoring
@@ -9,6 +10,7 @@ namespace IdentityProtectionMonitoring
     public class AutotaskFunctions
     {
         private AutotaskClientAPI AutotaskAPI;
+        private ILogger? logger = null;
         private static readonly JsonSerializerOptions jsonSerializerDefaults = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -17,6 +19,12 @@ namespace IdentityProtectionMonitoring
         public AutotaskFunctions()
         {
             AutotaskAPI = new AutotaskClientAPI();
+        }
+
+        public void SetLogger(ILogger logger)
+        {
+            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            AutotaskAPI.SetLogger(logger);
         }
 
         /// <summary>
@@ -33,8 +41,12 @@ namespace IdentityProtectionMonitoring
                     "id", "isActive", "isPrimary"
                 });
 
-            string locationsJson = await AutotaskAPI.Query("CompanyLocations", null, includeFields);
-            AutotaskLocationsList? locations = JsonSerializer.Deserialize<AutotaskLocationsList>(locationsJson, jsonSerializerDefaults);
+            string? locationsJson = await AutotaskAPI.Query("CompanyLocations", null, includeFields);
+            AutotaskLocationsList? locations = null;
+            if (locationsJson != null)
+            {
+                locations = JsonSerializer.Deserialize<AutotaskLocationsList>(locationsJson, jsonSerializerDefaults);
+            }
 
             if (locations != null && SharedFunctions.HasProperty(locations, "Items") && locations.Items != null)
             {
@@ -74,8 +86,12 @@ namespace IdentityProtectionMonitoring
                     "id"
                 });
 
-            string contractsJson = await AutotaskAPI.Query("Contracts", atFilter, includeFields);
-            AutotaskContractsList? contracts = JsonSerializer.Deserialize<AutotaskContractsList>(contractsJson, jsonSerializerDefaults);
+            string? contractsJson = await AutotaskAPI.Query("Contracts", atFilter, includeFields);
+            AutotaskContractsList? contracts = null;
+            if (contractsJson != null)
+            {
+                contracts = JsonSerializer.Deserialize<AutotaskContractsList>(contractsJson, jsonSerializerDefaults);
+            }
 
             if (contracts != null && SharedFunctions.HasProperty(contracts, "Items") && contracts.Items != null)
             {
@@ -143,8 +159,12 @@ namespace IdentityProtectionMonitoring
                     "id", "emailAddress", "emailAddress2", "emailAddress3", "firstName", "lastName", "isActive", "lastActivityDate"
                 });
 
-            string contactsJson = await AutotaskAPI.Query("Contacts", atFilter, includeFields);
-            AutotaskContactsList? contacts = JsonSerializer.Deserialize<AutotaskContactsList>(contactsJson, jsonSerializerDefaults);
+            string? contactsJson = await AutotaskAPI.Query("Contacts", atFilter, includeFields);
+            AutotaskContactsList? contacts = null;
+            if (contactsJson != null)
+            {
+                contacts = JsonSerializer.Deserialize<AutotaskContactsList>(contactsJson, jsonSerializerDefaults);
+            }
 
 
             // Filter down to the best contact
@@ -311,8 +331,12 @@ namespace IdentityProtectionMonitoring
                 }
             }, new JsonSerializerOptions() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull });
 
-            string ticketsJson = await AutotaskAPI.Query("Tickets", atFilter);
-            AutotaskTicketsList? tickets = JsonSerializer.Deserialize<AutotaskTicketsList>(ticketsJson, jsonSerializerDefaults);
+            string? ticketsJson = await AutotaskAPI.Query("Tickets", atFilter);
+            AutotaskTicketsList? tickets = null;
+            if (ticketsJson != null)
+            {
+                tickets = JsonSerializer.Deserialize<AutotaskTicketsList>(ticketsJson, jsonSerializerDefaults);
+            }
 
             return tickets;
         }
@@ -327,8 +351,12 @@ namespace IdentityProtectionMonitoring
             int? newTicketId = null; // Default is null, if it returns null then creating a ticket did not work
 
             var newTicketPayloadJson = JsonSerializer.Serialize(newTicketPayload);
-            string newTicketJson = await AutotaskAPI.Create("Tickets", newTicketPayloadJson);
-            AutotaskCreatedResource? newTicket = JsonSerializer.Deserialize<AutotaskCreatedResource>(newTicketJson, jsonSerializerDefaults);
+            string? newTicketJson = await AutotaskAPI.Create("Tickets", newTicketPayloadJson);
+            AutotaskCreatedResource? newTicket = null;
+            if (newTicketJson != null)
+            {
+                newTicket = JsonSerializer.Deserialize<AutotaskCreatedResource>(newTicketJson, jsonSerializerDefaults);
+            }
 
             if (newTicket != null)
             {
@@ -336,6 +364,10 @@ namespace IdentityProtectionMonitoring
             }
             else
             {
+                if (logger != null)
+                {
+                    logger.LogError("Ticket Creation Failed. Error: " + newTicketJson);
+                }
                 throw new InvalidOperationException("Ticket Creation Failed. Error: " + newTicketJson);
             }
 
@@ -353,8 +385,12 @@ namespace IdentityProtectionMonitoring
             int? newTicketNoteId = null; // Default is null, if it returns null then creating a ticket note did not work
 
             var newTicketNotePayloadJson = JsonSerializer.Serialize(newTicketNotePayload);
-            string newTicketNoteJson = await AutotaskAPI.Create("TicketNotes", newTicketNotePayloadJson);
-            AutotaskCreatedResource? ticketNote = JsonSerializer.Deserialize<AutotaskCreatedResource>(newTicketNoteJson, jsonSerializerDefaults);
+            string? newTicketNoteJson = await AutotaskAPI.Create("TicketNotes", newTicketNotePayloadJson);
+            AutotaskCreatedResource? ticketNote = null;
+            if (newTicketNoteJson != null)
+            {
+                ticketNote = JsonSerializer.Deserialize<AutotaskCreatedResource>(newTicketNoteJson, jsonSerializerDefaults);
+            }
 
             if (ticketNote != null)
             {
@@ -370,6 +406,10 @@ namespace IdentityProtectionMonitoring
             }
             else
             {
+                if (logger != null)
+                {
+                    logger.LogError("Ticket Note Creation Failed. Error: " + newTicketNoteJson);
+                }
                 throw new InvalidOperationException("Ticket Note Creation Failed. Error: " + newTicketNoteJson);
             }
 

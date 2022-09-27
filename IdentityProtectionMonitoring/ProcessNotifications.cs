@@ -47,6 +47,7 @@ namespace IdentityProtectionMonitoring
             FunctionContext executionContext)
         {
             var logger = executionContext.GetLogger("ProcessNotifications");
+            AutotaskFunctions.SetLogger(logger);
 
             // Check configuration
             if (string.IsNullOrEmpty(_config["IDP_Function_AppID"]) ||
@@ -54,7 +55,7 @@ namespace IdentityProtectionMonitoring
                 string.IsNullOrEmpty(_config["IDP_Function_TenantID"]))
             {
                 logger.LogError("Invalid app settings configured");
-                return req.CreateResponse(HttpStatusCode.InternalServerError);
+                return req.CreateResponse(HttpStatusCode.FailedDependency);
             }
 
             var clientState = SharedFunctions.GetEnvironmentVariable("Client_State_Secret");
@@ -67,7 +68,7 @@ namespace IdentityProtectionMonitoring
             if (string.IsNullOrEmpty(clientState))
             {
                 logger.LogError("The 'ProcessNotifications_SecretKey' configuration is not set.");
-                return req.CreateResponse(HttpStatusCode.InternalServerError);
+                return req.CreateResponse(HttpStatusCode.PreconditionFailed);
             }
 
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
